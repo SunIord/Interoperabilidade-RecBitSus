@@ -2,6 +2,7 @@ import React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import App from "./App";
 import * as api from "./api";
+import * as sandbox from "./sandbox";
 import { Bundle } from "./types";
 
 // Só as chamadas de rede são trocadas; ApiError e traduzirErro são os reais.
@@ -12,6 +13,13 @@ jest.mock("./api", () => ({
   validarBundle: jest.fn()
 }));
 
+// Só o envio de rede é trocado; ErroSandbox continua sendo o real.
+jest.mock("./sandbox", () => ({
+  ...jest.requireActual("./sandbox"),
+  enviarAoSandbox: jest.fn()
+}));
+
+const enviarAoSandbox = sandbox.enviarAoSandbox as jest.Mock;
 const criarBundle = api.criarBundle as jest.Mock;
 const buscarPorCpf = api.buscarPorCpf as jest.Mock;
 const validarBundle = api.validarBundle as jest.Mock;
@@ -230,4 +238,89 @@ test("editar o JSON limpa o resultado da validação anterior", async () => {
 
   fireEvent.change(editor, { target: { value: "{}" } });
   expect(screen.queryByText(/JSON válido nos três níveis/)).not.toBeInTheDocument();
+});
+
+// ---------- servidor de testes (HAPI) ----------
+
+const enviar = () =>
+  fireEvent.click(screen.getByRole("button", { name: /Enviar ao servidor de testes/ }));
+
+test("enviar ao servidor de testes pede confirmação e mostra os recursos criados", async () => {
+  const confirmar = jest.spyOn(window, "confirm").mockReturnValue(true);
+  enviarAoSandbox.mockResolvedValue([
+    { tipo: "Patient", id: "501", url: "https://hapi.fhir.org/baseR4/Patient/501" },
+    { tipo: "Observation", id: "502", url: "https://hapi.fhir.org/baseR4/Observation/502" }
+  ]);
+  await comEditorAberto();
+  enviar();
+
+  expect(await screen.findByText(/Enviado ao servidor de testes/)).toBeInTheDocument();
+  expect(confirmar).toHaveBeenCalledWith(expect.stringMatching(/dados fictícios/));
+  expect(enviarAoSandbox).toHaveBeenCalledWith(bundle);
+  const link = screen.getByRole("link", { name: "Patient/501" });
+  expect(link).toHaveAttribute("href", "https://hapi.fhir.org/baseR4/Patient/501");
+  expect(screen.getByRole("link", { name: "Observation/502" })).toBeInTheDocument();
+  confirmar.mockRestore();
+});
+
+test("se a pessoa cancela a confirmação, nada é enviado", async () => {
+  const confirmar = jest.spyOn(window, "confirm").mockReturnValue(false);
+  await comEditorAberto();
+  enviar();
+
+  expect(confirmar).toHaveBeenCalled();
+  expect(enviarAoSandbox).not.toHaveBeenCalled();
+  expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  confirmar.mockRestore();
+});
+
+test("o envio usa o JSON editado, não o original", async () => {
+  const confirmar = jest.spyOn(window, "confirm").mockReturnValue(true);
+  enviarAoSandbox.mockResolvedValue([]);
+  const editor = await comEditorAberto();
+  fireEvent.change(editor, { target: { value: JSON.stringify({ ...bundle, id: "editado" }) } });
+  enviar();
+
+  await waitFor(() => expect(enviarAoSandbox).toHaveBeenCalled());
+  expect(enviarAoSandbox).toHaveBeenCalledWith({ ...bundle, id: "editado" });
+  confirmar.mockRestore();
+});
+
+test("recusa do servidor mostra o motivo", async () => {
+  const confirmar = jest.spyOn(window, "confirm").mockReturnValue(true);
+  enviarAoSandbox.mockRejectedValue(
+    new sandbox.ErroSandbox("O servidor de testes recusou o envio (erro 400).", [
+      "Referência inválida"
+    ])
+  );
+  await comEditorAberto();
+  enviar();
+
+  expect(await screen.findByText(/recusou o envio \(erro 400\)/)).toBeInTheDocument();
+  expect(screen.getByText("Referência inválida")).toBeInTheDocument();
+  confirmar.mockRestore();
+});
+
+test("JSON malformado não chega a pedir confirmação nem a enviar", async () => {
+  const confirmar = jest.spyOn(window, "confirm").mockReturnValue(true);
+  const editor = await comEditorAberto();
+  fireEvent.change(editor, { target: { value: "{ quebrado" } });
+  enviar();
+
+  expect(await screen.findByText(/JSON malformado/)).toBeInTheDocument();
+  expect(confirmar).not.toHaveBeenCalled();
+  expect(enviarAoSandbox).not.toHaveBeenCalled();
+  confirmar.mockRestore();
+});
+
+test("editar o JSON apaga o resultado do envio anterior", async () => {
+  const confirmar = jest.spyOn(window, "confirm").mockReturnValue(true);
+  enviarAoSandbox.mockResolvedValue([]);
+  const editor = await comEditorAberto();
+  enviar();
+  await screen.findByText(/Enviado ao servidor de testes/);
+
+  fireEvent.change(editor, { target: { value: "{}" } });
+  expect(screen.queryByText(/Enviado ao servidor de testes/)).not.toBeInTheDocument();
+  confirmar.mockRestore();
 });

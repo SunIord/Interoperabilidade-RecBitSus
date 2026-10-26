@@ -9,6 +9,7 @@ import {
   Opcao
 } from "./catalogo";
 import { Formulario, FORMULARIO_INICIAL, montarPayload } from "./formulario";
+import { enviarAoSandbox, ErroSandbox, RecursoCriado, SANDBOX_URL } from "./sandbox";
 import { Bundle, ResultadoValidacao } from "./types";
 
 // ---------- componentes de apoio ----------
@@ -90,6 +91,51 @@ function Validacao({ r }: { r: ResultadoValidacao }) {
   );
 }
 
+// Resultado do envio opcional ao servidor público de testes (HAPI).
+type EnvioSandbox =
+  | { tipo: "ok"; recursos: RecursoCriado[] }
+  | { tipo: "erro"; mensagem: string; problemas: string[] };
+
+const AVISO_SANDBOX =
+  `Isto vai enviar o JSON ao servidor público de testes (${SANDBOX_URL}).\n` +
+  "Qualquer pessoa poderá ver o que for enviado. Use apenas dados fictícios.\n\n" +
+  "Continuar?";
+
+function ResultadoEnvio({ envio }: { envio: EnvioSandbox }) {
+  if (envio.tipo === "erro") {
+    return (
+      <div className="validacao" role="status">
+        <p>
+          <strong>❌ {envio.mensagem}</strong>
+        </p>
+        {envio.problemas.length > 0 && (
+          <ul className="lista-problemas">
+            {envio.problemas.map((p, i) => (
+              <li key={i}>{p}</li>
+            ))}
+          </ul>
+        )}
+      </div>
+    );
+  }
+  return (
+    <div className="validacao" role="status">
+      <p>
+        <strong>✅ Enviado ao servidor de testes. Recursos criados:</strong>
+      </p>
+      <ul className="resultados">
+        {envio.recursos.map((r) => (
+          <li key={`${r.tipo}/${r.id}`}>
+            <a href={r.url} target="_blank" rel="noreferrer">
+              {r.tipo}/{r.id}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 // ---------- tela ----------
 
 function App() {
@@ -103,6 +149,7 @@ function App() {
   const [jsonTexto, setJsonTexto] = useState<string | null>(null);
   const [jsonOriginal, setJsonOriginal] = useState<string | null>(null);
   const [validacao, setValidacao] = useState<ResultadoValidacao | null>(null);
+  const [envio, setEnvio] = useState<EnvioSandbox | null>(null);
 
   const [cpfBusca, setCpfBusca] = useState("");
   const [encontrados, setEncontrados] = useState<Bundle[] | null>(null);
@@ -128,6 +175,7 @@ function App() {
     setJsonTexto(texto);
     setJsonOriginal(texto);
     setValidacao(null);
+    setEnvio(null);
   };
 
   const mostrarErro = (err: unknown) => {
@@ -207,6 +255,40 @@ function App() {
       setValidacao(await validarBundle(parsed));
     } catch (err) {
       mostrarErro(err);
+    } finally {
+      setCarregando(false);
+    }
+  };
+
+  // ---------- enviar ao servidor de testes (opcional) ----------
+
+  const enviarSandbox = async () => {
+    if (jsonTexto === null) return;
+    setAviso(null);
+    setEnvio(null);
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(jsonTexto);
+    } catch (e) {
+      setEnvio({
+        tipo: "erro",
+        mensagem: `JSON malformado: ${(e as Error).message}`,
+        problemas: []
+      });
+      return;
+    }
+
+    // É um servidor público: confirma antes de publicar qualquer coisa.
+    if (!window.confirm(AVISO_SANDBOX)) return;
+
+    setCarregando(true);
+    try {
+      setEnvio({ tipo: "ok", recursos: await enviarAoSandbox(parsed) });
+    } catch (err) {
+      const erro =
+        err instanceof ErroSandbox ? err : new ErroSandbox("Erro inesperado.");
+      setEnvio({ tipo: "erro", mensagem: erro.message, problemas: erro.problemas });
     } finally {
       setCarregando(false);
     }
@@ -349,6 +431,7 @@ function App() {
             onChange={(e) => {
               setJsonTexto(e.target.value);
               setValidacao(null);
+              setEnvio(null);
             }}
             rows={28}
             spellCheck={false}
@@ -362,14 +445,23 @@ function App() {
               onClick={() => {
                 setJsonTexto(jsonOriginal);
                 setValidacao(null);
+                setEnvio(null);
               }}
               disabled={jsonTexto === jsonOriginal}
             >
               Restaurar original
             </button>
+            <button onClick={enviarSandbox} disabled={carregando}>
+              Enviar ao servidor de testes (HAPI)
+            </button>
           </div>
+          <small>
+            Opcional. Envia o JSON ao servidor público {SANDBOX_URL}: não use
+            dados reais.
+          </small>
 
           {validacao && <Validacao r={validacao} />}
+          {envio && <ResultadoEnvio envio={envio} />}
         </div>
       )}
     </div>
