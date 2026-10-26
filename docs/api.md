@@ -72,6 +72,9 @@ Servidor FHIR rodando 🚀
 `GET /health` sempre responde `200` com `{"status":"ok"}` e é o que o Render usa
 como verificação de saúde. Passo a passo do deploy em [deploy.md](deploy.md).
 
+Para enviar os Bundles a um servidor FHIR de testes (HAPI), veja
+[sandbox.md](sandbox.md).
+
 ### `POST /bundle`
 
 Valida os dados do formulário, monta o Bundle, salva e devolve o Bundle criado

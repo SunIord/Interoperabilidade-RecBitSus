@@ -112,13 +112,13 @@ Criar bundle:
 ```
 curl -X POST http://localhost:3001/bundle \
 -H "Content-Type: application/json" \
--d '{"nome":"Daniel","cpf":"123"}'
+-d '{"cpf":"12345678910","given":"Maria","family":"Silva","gender":"female","birthDate":"1985-03-21","observacao":"temperatura","status":"final","value":38.5,"effectiveDateTime":"2024-05-10T09:30","condicao":"febre","clinicalStatus":"active","recordedDate":"2024-05-10"}'
 ```
 
 Buscar por CPF:
 
 ```
-curl http://localhost:3001/bundle/cpf/123
+curl http://localhost:3001/bundle/cpf/12345678910
 ```
 
 ## 🧠 Metodologia Ativa
