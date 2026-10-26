@@ -81,15 +81,23 @@ Retorna todos os bundles associados ao paciente.
 ```bash
 cd backend
 npm install
-npx tsc
-node server.ts
+npm run build
+npm start
 ```
 
 ### Frontend
-```cd frontend
+```bash
+cd frontend
 npm install
 npm start
 ```
+
+### Produção (Render)
+
+Em produção o Express serve a API **e** a interface (`frontend/build`) numa só
+URL. Configuração em [render.yaml](render.yaml) e passo a passo em
+[docs/deploy.md](docs/deploy.md). Documentação da API em
+[docs/api.md](docs/api.md).
 
 ## 📁 Persistência
 

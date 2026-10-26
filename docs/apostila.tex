@@ -1,0 +1,793 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage[brazil]{babel}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{enumitem}
+\usepackage{fancyvrb}
+\usepackage{titlesec}
+\usepackage[hidelinks]{hyperref}
+
+\setlength{\parskip}{0.5em}
+\setlength{\parindent}{0pt}
+\setlist{itemsep=0.2em, topsep=0.3em}
+
+\newcommand{\codigo}[1]{\texttt{#1}}
+
+\title{Interoperabilidade em Saúde:\\FHIR HL7, RNDS e BR-Core}
+\author{RecBitSUS: Recife e UFPE na batida do SUS digital\\ Aula 7}
+\date{}
+
+\begin{document}
+
+\maketitle
+
+% ---------------------------------------------------------------
+\section{Introdução à interoperabilidade}
+% A partir daqui, toda seção começa em página nova
+\renewcommand{\sectionbreak}{\clearpage}
+
+\subsection{Definição}
+
+Considere uma viagem organizada por meio de três serviços distintos: a
+passagem é comprada no aplicativo da companhia aérea, o hotel é reservado
+em outro site e o transporte é solicitado em um terceiro aplicativo. Os
+sistemas pertencem a empresas diferentes, mas o horário do voo aparece no
+calendário do celular, o hotel recebe o nome do hóspede corretamente e o
+motorista localiza o ponto de embarque. Isso é possível porque os sistemas
+seguem regras previamente acordadas para a troca de informações.
+
+\textbf{Interoperabilidade} é a capacidade de sistemas diferentes
+trocarem dados e utilizarem as informações recebidas sem retrabalho manual.
+
+É importante distinguir dois aspectos dessa definição. Trocar dados
+significa que a informação sai de um sistema e chega a outro. Utilizar os
+dados significa que o sistema receptor consegue interpretá-los
+corretamente: sabe do que se trata cada campo, em que formato está cada
+valor e o que cada código representa. Um arquivo enviado por e-mail e
+digitado novamente à mão em outro sistema é troca de dados, mas não é
+interoperabilidade.
+
+\subsection{Interoperabilidade na saúde}
+
+Considere uma paciente atendida em uma UPA, depois em uma unidade de saúde
+da família e, na semana seguinte, em um hospital. Cada serviço utiliza seu
+próprio sistema. Na ausência de interoperabilidade:
+
+\begin{itemize}
+  \item o histórico precisa ser relatado novamente a cada atendimento;
+  \item exames são repetidos porque o resultado anterior não está
+    acessível;
+  \item alergias e medicamentos em uso podem passar despercebidos;
+  \item gestores não conseguem acompanhar o cuidado de forma integrada.
+\end{itemize}
+
+Com interoperabilidade, cada sistema envia e recebe os dados da pessoa
+atendida, e o profissional dispõe do quadro clínico completo no momento do
+atendimento.
+
+Os benefícios se dividem em três níveis:
+
+\begin{itemize}
+  \item \textbf{Para o paciente:} menos repetição de exames e de
+    relatos, e maior segurança no cuidado, já que informações como
+    alergias acompanham a pessoa.
+  \item \textbf{Para o profissional:} decisões clínicas tomadas com
+    informação completa e atualizada.
+  \item \textbf{Para a gestão:} dados consolidados que permitem
+    planejar ações e acompanhar a rede de atenção como um todo.
+\end{itemize}
+
+\subsection{A necessidade de um padrão}
+
+Para que dois sistemas se comuniquem, a conexão entre eles não é
+suficiente. É necessário haver acordo sobre:
+
+\begin{itemize}
+  \item quais informações existem (paciente, exame, diagnóstico\ldots);
+  \item como cada informação é representada (nome dos campos, formato de
+    datas);
+  \item o significado de cada código (qual código representa
+    ``febre'').
+\end{itemize}
+
+Esse acordo constitui o \textbf{padrão de comunicação}.
+
+Sem esse acordo, problemas simples aparecem com facilidade. Uma data
+escrita como \codigo{03/04/2026} pode ser lida como 3 de abril ou como 4 de
+março, dependendo do sistema. O sexo de uma pessoa pode ser registrado
+como ``F'', ``Feminino'' ou ``2''. Um padrão elimina essas ambiguidades ao
+definir, de forma única, como cada informação deve ser escrita.
+
+\subsection*{Pontos principais}
+
+\begin{itemize}
+  \item Interoperabilidade é trocar dados \emph{e} conseguir utilizá-los.
+  \item Na saúde, ela reduz repetição de exames, melhora a segurança do
+    paciente e apoia a gestão.
+  \item Para sistemas diferentes se entenderem, é preciso um padrão
+    comum que defina informações, formatos e códigos.
+\end{itemize}
+
+% ---------------------------------------------------------------
+\section{Padrões de comunicação e o FHIR}
+
+Duas pessoas que não falam o mesmo idioma podem se comunicar por gestos,
+mas o processo é lento e sujeito a erros. Da mesma forma, se cada par de
+sistemas definir seu próprio formato de troca, o número de integrações
+cresce rapidamente: 5 sistemas exigiriam até 10 integrações distintas e 10
+sistemas, até 45.
+
+Com um padrão comum, cada sistema implementa a comunicação uma única vez e
+passa a se comunicar com todos os demais. Na saúde digital, um dos padrões
+mais utilizados atualmente é o FHIR.
+
+\subsection{O que é o FHIR}
+
+FHIR (\emph{Fast Healthcare Interoperability Resources}) é um padrão de
+troca de dados em saúde publicado pela HL7, organização internacional que
+desenvolve padrões para informática em saúde.
+
+Toda informação de saúde é dividida em unidades chamadas
+\textbf{recursos} (\emph{resources}). Cada recurso possui uma estrutura
+definida, e os recursos se relacionam por meio de referências.
+
+Site oficial: \url{https://www.hl7.org/fhir/}
+
+\textbf{Atenção às versões:} o endereço acima apresenta a versão mais
+recente da especificação (R5). O Brasil adota a versão R4 (RNDS e
+BR-Core). Para consultar a versão utilizada neste material, acesse:
+\url{https://hl7.org/fhir/R4/}
+
+\subsection{Características do FHIR}
+
+\begin{itemize}
+  \item \textbf{Modular:} a informação é dividida em recursos pequenos e
+    independentes, que podem ser combinados conforme a necessidade.
+  \item \textbf{Baseado em referências:} um recurso não repete dados de
+    outro; ele aponta para ele. Uma observação, por exemplo, referencia o
+    paciente em vez de copiar seus dados.
+  \item \textbf{Extensível:} quando o padrão não prevê um campo
+    necessário, é possível acrescentá-lo por meio de extensões, sem
+    quebrar a compatibilidade.
+  \item \textbf{Compatível com a web:} o FHIR define uma API baseada em
+    HTTP, na qual recursos podem ser lidos, criados, atualizados e
+    buscados por meio de endereços (URLs).
+\end{itemize}
+
+\subsection{Estrutura de um recurso}
+
+Todo recurso FHIR possui:
+
+\begin{itemize}
+  \item um \textbf{tipo} (\codigo{resourceType}), que indica o que ele
+    representa: Patient, Observation, Condition, entre outros;
+  \item um \textbf{identificador} (\codigo{id}), que o distingue dos
+    demais recursos do mesmo tipo;
+  \item \textbf{elementos} próprios do tipo, como nome e data de
+    nascimento no Patient, ou valor e unidade na Observation.
+\end{itemize}
+
+Cada elemento tem um \textbf{tipo de dado}. Alguns tipos que aparecem nos
+exemplos deste material:
+
+\begin{description}
+  \item[string, date, dateTime] Texto, data (AAAA-MM-DD) e data com hora.
+  \item[Coding] Um código de um catálogo: \codigo{system}, \codigo{code}
+    e \codigo{display}.
+  \item[CodeableConcept] Um conceito representado por um ou mais
+    \codigo{Coding}, acompanhados de um texto livre (\codigo{text}).
+  \item[Quantity] Um valor numérico com unidade.
+  \item[Reference] Uma referência a outro recurso.
+\end{description}
+
+\subsection{Recursos principais}
+
+O FHIR define dezenas de recursos. Neste material, são utilizados três:
+
+\begin{description}
+  \item[Patient (Paciente)] Dados de identificação: nome, data de
+    nascimento, sexo, identificadores (como CPF e CNS).
+  \item[Observation (Observação)] Medida ou achado: temperatura,
+    pressão arterial, resultado de exame, peso.
+  \item[Condition (Condição)] Problema de saúde ou diagnóstico, por
+    exemplo, registrado com um código CID.
+\end{description}
+
+A estrutura completa de cada recurso (campos, tipos, obrigatoriedade e
+diagrama UML) está na página do recurso na especificação oficial da HL7,
+que é a representação de referência do modelo:
+
+\begin{itemize}
+  \item Patient: \url{https://hl7.org/fhir/R4/patient.html}
+  \item Observation: \url{https://hl7.org/fhir/R4/observation.html}
+  \item Condition: \url{https://hl7.org/fhir/R4/condition.html}
+  \item Bundle: \url{https://hl7.org/fhir/R4/bundle.html}
+\end{itemize}
+
+\subsection{Formatos de representação}
+
+Um mesmo recurso pode ser representado em mais de um formato:
+
+\begin{itemize}
+  \item \textbf{JSON}: o mais utilizado em APIs modernas;
+  \item \textbf{XML}: também suportado pela especificação.
+\end{itemize}
+
+O conteúdo é o mesmo; muda apenas a forma de escrevê-lo.
+
+\subsection*{Pontos principais}
+
+\begin{itemize}
+  \item O FHIR é um padrão da HL7 que organiza a informação em recursos.
+  \item Os recursos são modulares, extensíveis e ligados por referências.
+  \item O Brasil utiliza a versão R4.
+  \item Patient, Observation e Condition são os recursos usados neste
+    material.
+\end{itemize}
+
+% ---------------------------------------------------------------
+\section{JSON no contexto do FHIR}
+
+\subsection{O que é JSON}
+
+JSON (\emph{JavaScript Object Notation}) é um formato de texto para
+organizar dados em pares \codigo{"nome": valor}. Regras básicas:
+
+\begin{itemize}
+  \item objetos ficam entre chaves \codigo{\{ \}};
+  \item listas ficam entre colchetes \codigo{[ ]};
+  \item textos vão entre aspas duplas;
+  \item números, \codigo{true}, \codigo{false} e \codigo{null} não levam
+    aspas;
+  \item itens são separados por vírgula.
+\end{itemize}
+
+Exemplo mínimo:
+
+\begin{Verbatim}[frame=single,fontsize=\footnotesize]
+{
+  "nome": "Maria",
+  "idade": 41,
+  "alergias": ["dipirona", "penicilina"]
+}
+\end{Verbatim}
+
+Neste exemplo há um objeto com três pares. O valor de \codigo{"nome"} é um
+texto, o de \codigo{"idade"} é um número e o de \codigo{"alergias"} é uma
+lista com dois textos.
+
+Erros comuns ao escrever JSON à mão:
+
+\begin{itemize}
+  \item esquecer uma vírgula entre dois itens, ou deixar uma vírgula após
+    o último item;
+  \item usar aspas simples no lugar de aspas duplas;
+  \item esquecer de fechar uma chave ou um colchete.
+\end{itemize}
+
+Qualquer um desses erros torna o JSON inválido, e o sistema receptor o
+rejeita por completo.
+
+\subsection{Por que o FHIR utiliza JSON}
+
+\begin{itemize}
+  \item \textbf{Leve:} ocupa pouco espaço e trafega rapidamente.
+  \item \textbf{Legível:} pode ser compreendido sem ferramentas
+    especiais.
+  \item \textbf{Amplo suporte:} todas as linguagens de programação
+    leem e escrevem JSON.
+\end{itemize}
+
+\subsection{Exemplo: recurso Patient}
+
+Todo recurso FHIR inicia informando o seu tipo, no campo
+\codigo{"resourceType"}.
+
+\begin{Verbatim}[frame=single,fontsize=\footnotesize]
+{
+  "resourceType": "Patient",
+  "id": "paciente-001",
+  "identifier": [
+    {
+      "system": "http://www.saude.gov.br/fhir/r4/NamingSystem/cpf",
+      "value": "00000000000"
+    }
+  ],
+  "name": [
+    {
+      "use": "official",
+      "family": "Silva",
+      "given": ["Maria", "Aparecida"]
+    }
+  ],
+  "gender": "female",
+  "birthDate": "1985-03-21"
+}
+\end{Verbatim}
+
+Interpretação dos campos:
+
+\begin{itemize}
+  \item \codigo{"identifier"}: documento que identifica a pessoa. O campo
+    \codigo{"system"} indica a qual lista de identificadores o valor
+    pertence (neste caso, o CPF). O CPF do exemplo é fictício.
+  \item \codigo{"name"}: é uma lista, pois uma pessoa pode ter mais de um
+    nome. \codigo{"use"} indica o tipo de uso do nome (por exemplo,
+    \codigo{official}), \codigo{"given"} armazena os nomes e
+    \codigo{"family"}, o sobrenome.
+  \item \codigo{"gender"}: utiliza valores definidos pelo padrão
+    (\codigo{female}, \codigo{male}, \codigo{other}, \codigo{unknown}).
+  \item \codigo{"birthDate"}: sempre no formato AAAA-MM-DD.
+\end{itemize}
+
+Observe que \codigo{"identifier"} e \codigo{"name"} são listas, mesmo
+quando há apenas um item. Isso permite que o mesmo recurso armazene, por
+exemplo, CPF e CNS, ou um nome oficial e um nome social.
+
+\subsection{Exemplo: recurso Observation}
+
+\begin{Verbatim}[frame=single,fontsize=\footnotesize]
+{
+  "resourceType": "Observation",
+  "id": "obs-001",
+  "status": "final",
+  "category": [
+    {
+      "coding": [
+        {
+          "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+          "code": "vital-signs",
+          "display": "Vital Signs"
+        }
+      ]
+    }
+  ],
+  "code": {
+    "coding": [
+      {
+        "system": "http://loinc.org",
+        "code": "8310-5",
+        "display": "Body temperature"
+      }
+    ],
+    "text": "Temperatura corporal"
+  },
+  "subject": {
+    "reference": "Patient/paciente-001"
+  },
+  "effectiveDateTime": "2026-10-09T09:30:00-03:00",
+  "valueQuantity": {
+    "value": 38.5,
+    "unit": "°C",
+    "system": "http://unitsofmeasure.org",
+    "code": "Cel"
+  }
+}
+\end{Verbatim}
+
+Interpretação dos campos:
+
+\begin{itemize}
+  \item \codigo{"status"}: situação do registro. Alguns valores previstos
+    pelo padrão são \codigo{registered} (registrado), \codigo{preliminary}
+    (preliminar), \codigo{final} (finalizado) e \codigo{amended}
+    (corrigido).
+  \item \codigo{"category"}: agrupa a observação em uma categoria, como
+    sinais vitais (\codigo{vital-signs}).
+  \item \codigo{"code"}: o que foi medido. O código vem do LOINC, catálogo
+    internacional de exames e medidas. O campo \codigo{"text"} traz a
+    descrição legível.
+  \item \codigo{"subject"}: a quem pertence a observação. A referência
+    aponta para o Patient.
+  \item \codigo{"effectiveDateTime"}: quando a medida foi realizada. O
+    trecho \codigo{-03:00} indica o fuso horário (horário de Brasília).
+  \item \codigo{"valueQuantity"}: valor, unidade e código padronizado da
+    unidade. O código \codigo{Cel} pertence ao UCUM, padrão internacional
+    de unidades de medida, e representa graus Celsius.
+\end{itemize}
+
+\subsection{Exemplo: recurso Condition com CID}
+
+\begin{Verbatim}[frame=single,fontsize=\footnotesize]
+{
+  "resourceType": "Condition",
+  "id": "cond-001",
+  "clinicalStatus": {
+    "coding": [
+      {
+        "system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+        "code": "active"
+      }
+    ]
+  },
+  "code": {
+    "coding": [
+      {
+        "system": "http://www.saude.gov.br/fhir/r4/CodeSystem/BRCID10",
+        "code": "R50.9",
+        "display": "Febre não especificada"
+      }
+    ],
+    "text": "Febre"
+  },
+  "subject": {
+    "reference": "Patient/paciente-001"
+  },
+  "recordedDate": "2026-10-09"
+}
+\end{Verbatim}
+
+\textbf{O que é o CID:} a Classificação Internacional de Doenças, da
+Organização Mundial da Saúde, é o catálogo que atribui um código a cada
+doença ou problema de saúde. Utiliza-se aqui a versão CID-10 (R50.9 =
+febre não especificada).
+
+\textbf{CID-10 e CIAP-2:} o CID-10 é o catálogo usado para registrar
+\textbf{diagnósticos}. Para registrar \textbf{problemas} ou motivos de
+atendimento, sobretudo na atenção primária, utiliza-se também a CIAP-2
+(Classificação Internacional de Atenção Primária). Ambos podem alimentar o
+campo \codigo{"code"} da Condition; o que muda é o \codigo{"system"}, que
+indica o catálogo de origem.
+
+Interpretação dos campos:
+
+\begin{itemize}
+  \item \codigo{"clinicalStatus"}: situação clínica do problema.
+    \codigo{active} indica que o problema está ativo. O padrão prevê
+    outros valores, como \codigo{inactive}, \codigo{remission} e
+    \codigo{resolved}.
+  \item \codigo{"code"}: qual é o problema de saúde, expresso por um
+    código do CID-10.
+  \item \codigo{"recordedDate"}: data em que o problema foi registrado.
+\end{itemize}
+
+\subsection{Como o FHIR representa códigos}
+
+Nos três exemplos, os campos \codigo{"code"} e \codigo{"category"}
+seguem a mesma estrutura, chamada \codigo{CodeableConcept}. Ela contém:
+
+\begin{itemize}
+  \item uma lista \codigo{"coding"}, na qual cada item é um código de um
+    catálogo;
+  \item um campo \codigo{"text"}, com a descrição em texto livre.
+\end{itemize}
+
+Cada item de \codigo{"coding"} tem três elementos: \codigo{"system"}
+(catálogo de origem do código), \codigo{"code"} (o código em si) e
+\codigo{"display"} (o nome legível). Sem o \codigo{"system"}, um código
+isolado é ambíguo, pois o mesmo número pode ter significados diferentes em
+catálogos diferentes.
+
+A lista \codigo{"coding"} permite que o mesmo conceito seja expresso em
+mais de um catálogo ao mesmo tempo, e o campo \codigo{"text"} preserva o
+que o profissional escreveu, caso não exista código adequado.
+
+\subsection*{Pontos principais}
+
+\begin{itemize}
+  \item JSON organiza dados em objetos (\codigo{\{ \}}) e listas
+    (\codigo{[ ]}).
+  \item Todo recurso FHIR começa com \codigo{"resourceType"}.
+  \item Códigos são sempre acompanhados de seu \codigo{"system"}.
+  \item Recursos apontam para o paciente por meio de
+    \codigo{"subject"}.
+\end{itemize}
+
+% ---------------------------------------------------------------
+\section{Bundles}
+
+\subsection{Conceito}
+
+Um Bundle é um pacote que agrupa vários recursos em um único JSON. É
+utilizado, por exemplo, para enviar de uma só vez o paciente e tudo o que
+foi registrado sobre ele em um atendimento.
+
+Principais tipos de Bundle: \codigo{collection} (coleção de recursos),
+\codigo{document} (documento clínico), \codigo{transaction} (conjunto de
+operações que devem ser aplicadas em conjunto) e \codigo{searchset}
+(resultado de uma busca). Os exemplos deste material utilizam o tipo
+\codigo{collection}.
+
+Enviar os recursos agrupados traz duas vantagens: reduz o número de
+requisições entre os sistemas e mantém juntas as informações que pertencem
+ao mesmo contexto, como as de um mesmo atendimento.
+
+\subsection{Exemplo: paciente, observação e condição}
+
+{\scriptsize
+\begin{Verbatim}[frame=single]
+{
+  "resourceType": "Bundle",
+  "type": "collection",
+  "entry": [
+    {
+      "fullUrl": "urn:uuid:11111111-1111-1111-1111-111111111111",
+      "resource": {
+        "resourceType": "Patient",
+        "identifier": [
+          {
+            "system": "http://www.saude.gov.br/fhir/r4/NamingSystem/cpf",
+            "value": "00000000000"
+          }
+        ],
+        "name": [
+          { "family": "Silva", "given": ["Maria", "Aparecida"] }
+        ],
+        "gender": "female",
+        "birthDate": "1985-03-21"
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:22222222-2222-2222-2222-222222222222",
+      "resource": {
+        "resourceType": "Observation",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "8310-5",
+              "display": "Body temperature"
+            }
+          ],
+          "text": "Temperatura corporal"
+        },
+        "subject": {
+          "reference": "urn:uuid:11111111-1111-1111-1111-111111111111"
+        },
+        "effectiveDateTime": "2026-10-09T09:30:00-03:00",
+        "valueQuantity": {
+          "value": 38.5,
+          "unit": "°C",
+          "system": "http://unitsofmeasure.org",
+          "code": "Cel"
+        }
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:33333333-3333-3333-3333-333333333333",
+      "resource": {
+        "resourceType": "Condition",
+        "clinicalStatus": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+              "code": "active"
+            }
+          ]
+        },
+        "code": {
+          "coding": [
+            {
+              "system": "http://www.saude.gov.br/fhir/r4/CodeSystem/BRCID10",
+              "code": "R50.9",
+              "display": "Febre não especificada"
+            }
+          ],
+          "text": "Febre"
+        },
+        "subject": {
+          "reference": "urn:uuid:11111111-1111-1111-1111-111111111111"
+        },
+        "recordedDate": "2026-10-09"
+      }
+    }
+  ]
+}
+\end{Verbatim}
+}
+
+Cada item de \codigo{"entry"} contém um recurso e um \codigo{"fullUrl"},
+que funciona como o endereço do recurso dentro do pacote. A Observation e a
+Condition utilizam esse endereço em \codigo{"subject.reference"} para
+apontar para o mesmo Patient. É dessa forma que os recursos se relacionam
+dentro do Bundle.
+
+\subsection{Referências dentro e fora do Bundle}
+
+Nos exemplos individuais da seção anterior, a referência ao paciente foi
+escrita como \codigo{"Patient/paciente-001"}, ou seja, tipo do recurso e
+\codigo{id}. Esse formato pressupõe que o Patient já exista em algum
+servidor com esse identificador.
+
+Dentro de um Bundle, o paciente ainda pode não ter um identificador
+definitivo. Por isso, cada entrada recebe um \codigo{"fullUrl"} temporário
+no formato \codigo{urn:uuid:...}, e as referências apontam para ele. Um UUID
+é um identificador gerado de forma que seja praticamente único, o que evita
+conflito entre recursos.
+
+A regra prática é: o valor de \codigo{"reference"} deve coincidir com o
+\codigo{"fullUrl"} de alguma entrada do pacote. Se não coincidir, a
+referência fica sem destino.
+
+\subsection*{Pontos principais}
+
+\begin{itemize}
+  \item O Bundle agrupa recursos relacionados em um único envio.
+  \item Cada entrada tem um \codigo{"fullUrl"}, que serve de endereço
+    dentro do pacote.
+  \item As referências entre recursos devem apontar para um
+    \codigo{"fullUrl"} existente.
+\end{itemize}
+
+% ---------------------------------------------------------------
+\section{RNDS e BR-Core}
+
+\subsection{RNDS -- Rede Nacional de Dados em Saúde}
+
+A RNDS é a plataforma nacional do Ministério da Saúde para integração de
+dados em saúde. Seu objetivo é permitir que estabelecimentos públicos e
+privados enviem e consultem informações de forma padronizada, compondo o
+histórico clínico do cidadão, que pode ser acessado, por exemplo, por meio
+do Conecte SUS.
+
+A RNDS padroniza em âmbito nacional a linguagem de troca de informações em
+saúde, e essa linguagem é o FHIR (versão R4). Os dados enviados à RNDS são
+validados com base em modelos publicados pelo Ministério da Saúde.
+
+Esses modelos de dados, com os campos de cada tipo de registro, estão no
+guia de integração da RNDS: \url{https://rnds-guia.saude.gov.br/}
+
+Na prática, isso significa que um sistema de um município, de um hospital
+ou de uma clínica privada, desenvolvido por qualquer fornecedor, pode
+trocar informações com a rede nacional desde que adote o mesmo padrão.
+
+\subsection{BR-Core}
+
+O BR-Core é o conjunto de definições que adapta o FHIR à realidade
+brasileira. O FHIR é um padrão internacional e deixa diversas decisões em
+aberto, como quais identificadores utilizar e quais catálogos de códigos
+adotar. O BR-Core define essas escolhas para o Brasil, por exemplo:
+
+\begin{itemize}
+  \item identificadores nacionais, como CPF e CNS;
+  \item catálogos de códigos brasileiros (como o CID-10 usado no exemplo);
+  \item perfis: regras que definem quais campos de um recurso são
+    obrigatórios.
+\end{itemize}
+
+Em termos de analogia, se o FHIR é o idioma, o BR-Core corresponde às
+regras de uso e ao vocabulário acordados para o país.
+
+\subsection{Perfis e validação}
+
+Um \textbf{perfil} é um conjunto de restrições aplicado a um recurso. O
+recurso Patient do FHIR, por exemplo, deixa quase todos os campos
+opcionais. Um perfil pode estabelecer que determinados campos passam a ser
+obrigatórios, que certos identificadores devem ser usados e que
+determinados catálogos de códigos devem ser respeitados.
+
+A \textbf{validação} é a verificação de que um recurso respeita as regras
+do perfil. Um recurso pode ser um JSON válido e, ainda assim, falhar na
+validação por não cumprir o perfil exigido, por exemplo por não conter um
+campo obrigatório.
+
+Por isso, existem três níveis de correção que convém distinguir:
+
+\begin{enumerate}
+  \item o JSON está bem formado (sintaxe correta);
+  \item o recurso respeita a estrutura do FHIR (campos e tipos corretos);
+  \item o recurso respeita o perfil exigido (por exemplo, o do BR-Core).
+\end{enumerate}
+
+\textbf{Observação:} nos exemplos deste material, o \codigo{"system"} do
+CPF e do CID segue o padrão brasileiro. Em um envio real à RNDS, é
+necessário conferir as URLs e os perfis na documentação oficial vigente.
+
+\subsection*{Pontos principais}
+
+\begin{itemize}
+  \item A RNDS é a rede nacional que utiliza o FHIR R4 como linguagem de
+    troca.
+  \item O BR-Core adapta o FHIR ao Brasil: identificadores, catálogos e
+    perfis.
+  \item Perfis definem regras adicionais, e a validação verifica se elas
+    foram cumpridas.
+\end{itemize}
+
+% ---------------------------------------------------------------
+\section{Atividade prática}
+
+\textbf{Objetivo:} observar a geração de um Bundle FHIR e alterar o JSON
+para compreender como a estrutura reage às modificações.
+
+\textbf{Repositório:}
+\url{https://github.com/Daniel-Nas/Interoperabilidade-RecBitSus}
+
+\textbf{Procedimento:}
+
+\begin{enumerate}
+  \item Clonar o repositório.
+  \item Seguir o README para instalar as dependências e executar o
+    projeto.
+  \item Preencher o formulário e gerar um Bundle.
+  \item Abrir o JSON gerado e identificar: o Patient, a Observation e a
+    Condition; o \codigo{"fullUrl"} de cada recurso; as referências em
+    \codigo{"subject"}.
+\end{enumerate}
+
+Caso prefira, acesse \textbf{[LINK DO DEPLOY NO VERCEL]}
+
+\textbf{Teste em um servidor FHIR (opcional):} o JSON gerado também pode
+ser enviado a um servidor FHIR de testes. O HAPI FHIR, implementação
+de referência muito utilizada, mantém um servidor público R4 para
+experimentação: \url{https://hapi.fhir.org/baseR4}. Nele, é possível
+enviar cada recurso (por exemplo, \codigo{POST} em
+\codigo{https://hapi.fhir.org/baseR4/Patient}) e depois consultá-lo por
+\codigo{GET}. O envio pode ser feito sem programar nada, apenas com o JSON
+dos exemplos desta apostila colado como corpo da requisição em uma
+ferramenta como o Postman. Por ser um servidor público, \textbf{não envie
+dados reais de pessoas}.
+
+\textbf{Modificações propostas:}
+
+\begin{enumerate}[label=\alph*)]
+  \item Trocar o CID do exemplo (por exemplo, R50.9 por outro código) e
+    alterar o \codigo{"display"} correspondente.
+  \item Alterar o valor da temperatura e a data da observação.
+  \item Adicionar um segundo nome em \codigo{"given"} no Patient.
+  \item Apagar o \codigo{"system"} de um \codigo{"coding"} e discutir o
+    que se perde.
+  \item Remover um campo obrigatório e observar o resultado.
+\end{enumerate}
+
+\textbf{Questões para discussão:}
+
+\begin{itemize}
+  \item Por que o \codigo{"system"} é tão importante quanto o
+    \codigo{"code"}?
+  \item O que acontece com um Bundle quando a referência de
+    \codigo{"subject"} aponta para um recurso inexistente?
+  \item Que informações do cotidiano de uma unidade de saúde ainda não
+    podem ser representadas apenas com Patient, Observation e Condition?
+\end{itemize}
+
+% ---------------------------------------------------------------
+\section*{Glossário}
+
+\begin{description}
+  \item[BR-Core] Adaptação do FHIR para o Brasil.
+  \item[Bundle] Pacote que agrupa vários recursos FHIR.
+  \item[CID] Classificação Internacional de Doenças (OMS).
+  \item[CIAP-2] Classificação Internacional de Atenção Primária.
+  \item[CNS] Cartão Nacional de Saúde.
+  \item[CodeableConcept] Tipo de dado do FHIR que reúne um ou mais códigos
+    e um texto livre.
+  \item[Condition] Recurso FHIR para problema de saúde ou diagnóstico.
+  \item[FHIR] Padrão de troca de dados em saúde criado pela HL7.
+  \item[HAPI FHIR] Implementação de referência do FHIR em Java, com
+    servidor público de testes.
+  \item[HL7] Organização internacional de padrões em saúde.
+  \item[Interoperabilidade] Capacidade de sistemas trocarem e usarem dados.
+  \item[JSON] Formato de texto para estruturar dados.
+  \item[LOINC] Catálogo internacional de exames e medidas.
+  \item[Observation] Recurso FHIR para medidas e achados.
+  \item[Patient] Recurso FHIR para dados do paciente.
+  \item[Perfil] Conjunto de restrições aplicado a um recurso FHIR.
+  \item[Recurso] Unidade básica de informação do FHIR.
+  \item[RNDS] Rede Nacional de Dados em Saúde.
+  \item[UCUM] Padrão de unidades de medida.
+  \item[Validação] Verificação de que um recurso respeita as regras de um
+    perfil.
+\end{description}
+
+% ---------------------------------------------------------------
+% Desativa a quebra de página apenas para Referências
+\renewcommand{\sectionbreak}{}
+\section*{Referências}
+
+\begin{itemize}
+  \item HL7 FHIR (R4): \url{https://hl7.org/fhir/R4/}
+  \item HL7 FHIR (versão atual): \url{https://www.hl7.org/fhir/}
+  \item RNDS, guia de integração: \url{https://rnds-guia.saude.gov.br/}
+  \item HAPI FHIR, servidor de testes R4: \url{https://hapi.fhir.org/baseR4}
+  \item Repositório da atividade prática:
+    \url{https://github.com/Daniel-Nas/Interoperabilidade-RecBitSus}
+  \item iPES: \url{https://ipes.tech/}
+  \item LOINC: \url{https://loinc.org/}
+\end{itemize}
+
+\end{document}

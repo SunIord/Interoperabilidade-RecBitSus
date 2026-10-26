@@ -1,0 +1,24 @@
+# Blueprint do Render: um único serviço web. O Express serve a API e também a
+# interface (frontend/build), então há uma só URL e não há CORS a configurar.
+# Passo a passo em docs/deploy.md.
+services:
+  - type: web
+    name: recbitsus-fhir
+    runtime: node
+    plan: free
+    # Instala e compila o frontend e o backend. --include=dev porque o
+    # TypeScript (usado no build do backend) é uma devDependency.
+    buildCommand: >-
+      npm --prefix frontend ci &&
+      npm --prefix frontend run build &&
+      npm --prefix backend ci --include=dev &&
+      npm --prefix backend run build
+    startCommand: npm --prefix backend start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      # O disco do plano gratuito é efêmero: o banco recomeça vazio a cada
+      # reinício, o que é suficiente para a atividade.
+      - key: DB_PATH
+        value: /tmp/bundles.json
