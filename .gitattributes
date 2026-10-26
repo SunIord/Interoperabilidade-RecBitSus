@@ -1,0 +1,2 @@
+# Normaliza fins de linha: o repositorio guarda e entrega LF (evita o aviso LF/CRLF no Windows).
+* text=auto eol=lf
