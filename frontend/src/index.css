@@ -85,3 +85,59 @@ input::placeholder {
   color: #22c55e;
   font-size: 14px;
 }
+
+/* Formulário: apenas o necessário para os novos controles */
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: #94a3b8;
+}
+
+select,
+textarea {
+  padding: 10px;
+  border-radius: 8px;
+  border: none;
+  outline: none;
+  background: #334155;
+  color: white;
+  font: inherit;
+}
+
+textarea.editor {
+  width: 100%;
+  box-sizing: border-box;
+  font-family: monospace;
+  margin-bottom: 10px;
+}
+
+.erro-campo {
+  color: #f87171;
+}
+
+.banner-erro {
+  background: #7f1d1d;
+  color: #fecaca;
+  padding: 12px 16px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+}
+
+.validacao {
+  margin-top: 16px;
+}
+
+.lista-problemas {
+  padding-left: 18px;
+}
+
+.lista-problemas li {
+  margin-bottom: 10px;
+}
+
+.resultados {
+  margin-top: 12px;
+  padding-left: 18px;
+}
