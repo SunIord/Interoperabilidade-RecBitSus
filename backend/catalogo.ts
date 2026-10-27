@@ -46,6 +46,51 @@ export const OBSERVACOES: Record<string, ObservacaoCatalogo> = {
     },
     unit: { unit: "°C", system: SYSTEMS.ucum, code: "Cel" },
     faixa: { min: 25, max: 45 }
+  },
+  "frequencia-cardiaca": {
+    coding: {
+      system: SYSTEMS.loinc,
+      code: "8867-4",
+      display: "Heart rate"
+    },
+    text: "Frequência cardíaca",
+    category: {
+      system: SYSTEMS.observationCategory,
+      code: "vital-signs",
+      display: "Vital Signs"
+    },
+    unit: { unit: "bpm", system: SYSTEMS.ucum, code: "/min" },
+    faixa: { min: 20, max: 250 }
+  },
+  "saturacao-oxigenio": {
+    coding: {
+      system: SYSTEMS.loinc,
+      code: "59408-5",
+      display: "Oxygen saturation in Arterial blood by Pulse oximetry"
+    },
+    text: "Saturação de oxigênio (oximetria de pulso)",
+    category: {
+      system: SYSTEMS.observationCategory,
+      code: "vital-signs",
+      display: "Vital Signs"
+    },
+    unit: { unit: "%", system: SYSTEMS.ucum, code: "%" },
+    faixa: { min: 50, max: 100 }
+  },
+  glicemia: {
+    coding: {
+      system: SYSTEMS.loinc,
+      code: "2339-0",
+      display: "Glucose [Mass/volume] in Blood"
+    },
+    text: "Glicemia",
+    category: {
+      system: SYSTEMS.observationCategory,
+      code: "laboratory",
+      display: "Laboratory"
+    },
+    unit: { unit: "mg/dL", system: SYSTEMS.ucum, code: "mg/dL" },
+    faixa: { min: 10, max: 1000 }
   }
 };
 
@@ -57,6 +102,30 @@ export const CONDICOES: Record<string, CondicaoCatalogo> = {
       display: "Febre não especificada"
     },
     text: "Febre"
+  },
+  hipertensao: {
+    coding: {
+      system: SYSTEMS.cid10,
+      code: "I10",
+      display: "Hipertensão essencial (primária)"
+    },
+    text: "Hipertensão arterial"
+  },
+  "diabetes-tipo-2": {
+    coding: {
+      system: SYSTEMS.cid10,
+      code: "E11.9",
+      display: "Diabetes mellitus não-insulino-dependente - sem complicações"
+    },
+    text: "Diabetes tipo 2"
+  },
+  "infeccao-vias-aereas": {
+    coding: {
+      system: SYSTEMS.cid10,
+      code: "J06.9",
+      display: "Infecção aguda das vias aéreas superiores não especificada"
+    },
+    text: "Infecção das vias aéreas superiores"
   }
 };
 

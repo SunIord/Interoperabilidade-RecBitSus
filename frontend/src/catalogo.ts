@@ -37,9 +37,30 @@ export const OBSERVACOES: ObservacaoCatalogo[] = [
     valor: "temperatura",
     rotulo: "Temperatura corporal (LOINC 8310-5)",
     unidade: "°C"
+  },
+  {
+    valor: "frequencia-cardiaca",
+    rotulo: "Frequência cardíaca (LOINC 8867-4)",
+    unidade: "bpm"
+  },
+  {
+    valor: "saturacao-oxigenio",
+    rotulo: "Saturação de oxigênio (LOINC 59408-5)",
+    unidade: "%"
+  },
+  {
+    valor: "glicemia",
+    rotulo: "Glicemia (LOINC 2339-0)",
+    unidade: "mg/dL"
   }
 ];
 
 export const CONDICOES: Opcao[] = [
-  { valor: "febre", rotulo: "Febre (CID-10 R50.9)" }
+  { valor: "febre", rotulo: "Febre (CID-10 R50.9)" },
+  { valor: "hipertensao", rotulo: "Hipertensão essencial (CID-10 I10)" },
+  { valor: "diabetes-tipo-2", rotulo: "Diabetes tipo 2 (CID-10 E11.9)" },
+  {
+    valor: "infeccao-vias-aereas",
+    rotulo: "Infecção das vias aéreas superiores (CID-10 J06.9)"
+  }
 ];

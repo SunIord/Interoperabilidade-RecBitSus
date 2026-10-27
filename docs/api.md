@@ -91,7 +91,7 @@ Valida os dados do formulário, monta o Bundle, salva e devolve o Bundle criado
 | `birthDate` | string | `AAAA-MM-DD`, data real do calendário, não pode ser futura |
 | `observacao` | string | Chave do catálogo de observações (ver abaixo) |
 | `status` | string | `registered`, `preliminary`, `final` ou `amended` |
-| `value` | number ou string | Número finito, dentro da faixa plausível da observação (temperatura: 25 a 45 °C) |
+| `value` | number ou string | Número finito, dentro da faixa plausível da observação escolhida (ver o catálogo; temperatura: 25 a 45 °C) |
 | `effectiveDateTime` | string | `AAAA-MM-DDTHH:mm` (segundos e fuso opcionais). Sem fuso, assume `-03:00`. Não pode ser futura nem anterior ao nascimento. |
 | `condicao` | string | Chave do catálogo de condições (ver abaixo) |
 | `clinicalStatus` | string | `active`, `inactive`, `remission` ou `resolved` |
@@ -353,15 +353,27 @@ em `observacao` e `condicao` devem ser uma das chaves abaixo.
 
 ### Observações (`observacao`)
 
-| Chave | Código | Sistema | Unidade (UCUM) | Categoria | Faixa aceita |
-|---|---|---|---|---|---|
-| `temperatura` | `8310-5` (Body temperature) | `http://loinc.org` | `°C` / `Cel` | `vital-signs` | 25 a 45 |
+Todas usam o sistema LOINC (`http://loinc.org`). Na coluna da unidade, o
+primeiro valor é o `unit` (texto exibido) e o segundo é o `code` UCUM.
+
+| Chave | Código LOINC | Unidade (UCUM) | Categoria | Faixa aceita |
+|---|---|---|---|---|
+| `temperatura` | `8310-5` (Body temperature) | `°C` / `Cel` | `vital-signs` | 25 a 45 |
+| `frequencia-cardiaca` | `8867-4` (Heart rate) | `bpm` / `/min` | `vital-signs` | 20 a 250 |
+| `saturacao-oxigenio` | `59408-5` (Oxygen saturation in Arterial blood by Pulse oximetry) | `%` / `%` | `vital-signs` | 50 a 100 |
+| `glicemia` | `2339-0` (Glucose [Mass/volume] in Blood) | `mg/dL` / `mg/dL` | `laboratory` | 10 a 1000 |
 
 ### Condições (`condicao`)
 
-| Chave | Código | Sistema |
+Todas usam o sistema CID-10
+(`http://www.saude.gov.br/fhir/r4/CodeSystem/BRCID10`).
+
+| Chave | Código CID-10 (`display`) | `text` |
 |---|---|---|
-| `febre` | `R50.9` (Febre não especificada) | `http://www.saude.gov.br/fhir/r4/CodeSystem/BRCID10` |
+| `febre` | `R50.9` (Febre não especificada) | Febre |
+| `hipertensao` | `I10` (Hipertensão essencial (primária)) | Hipertensão arterial |
+| `diabetes-tipo-2` | `E11.9` (Diabetes mellitus não-insulino-dependente - sem complicações) | Diabetes tipo 2 |
+| `infeccao-vias-aereas` | `J06.9` (Infecção aguda das vias aéreas superiores não especificada) | Infecção das vias aéreas superiores |
 
 ### Sistemas de código usados
 
@@ -377,8 +389,11 @@ em `observacao` e `condicao` devem ser uma das chaves abaixo.
 > As URLs de CPF e CID-10 seguem a apostila e ainda não foram conferidas na
 > documentação oficial do BR-Core/RNDS.
 
-Para acrescentar uma opção, basta adicionar uma entrada em `OBSERVACOES` ou
-`CONDICOES`.
+Para acrescentar uma opção, adicione a entrada em `OBSERVACOES` ou `CONDICOES`
+**e também** em [frontend/src/catalogo.ts](../frontend/src/catalogo.ts), que é
+uma cópia usada pelos seletores. O teste
+[tests/catalogo.test.ts](../tests/catalogo.test.ts) falha se as duas listas
+divergirem e confere que cada item gera um Bundle aprovado pelo `/validate`.
 
 ---
 
@@ -408,11 +423,13 @@ Planejadas em [melhorias.md](../melhorias.md).
 
 - **O CPF não tem o dígito verificador conferido**, de propósito, para aceitar
   CPFs fictícios.
-- **O catálogo é mínimo** (uma observação e uma condição).
-- **Dados antigos.** Bundles gravados antes do formato atual (sem `fullUrl`,
-  só Patient e Observation) continuam no arquivo. As buscas por CPF e por `id`
-  os encontram, mas eles não seguem o formato descrito aqui e não passariam no
-  `/validate`.
+- **O catálogo é pequeno** (quatro observações e quatro condições, todas da
+  CID-10; CIAP-2 ainda não é oferecido).
+- **Dados antigos.** Um `bundles.json` local criado antes do formato atual
+  (sem `fullUrl`, só Patient e Observation) continua sendo lido. As buscas por
+  CPF e por `id` encontram esses Bundles, mas eles não seguem o formato
+  descrito aqui e não passariam no `/validate`. O arquivo não vai para o git
+  e, no Render, o banco começa vazio.
 - **Sem autenticação nem limite de requisições.** Não exponha à internet sem
   uma camada na frente.
 - **Banco em arquivo.** Em hospedagens de disco efêmero, os dados se perdem a
